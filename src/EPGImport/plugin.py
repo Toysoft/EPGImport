@@ -5,9 +5,10 @@ import os
 import enigma
 import log
 
-# Config
-from Components.config import config, configfile, ConfigEnableDisable, ConfigSubsection, ConfigYesNo, ConfigClock, getConfigListEntry, ConfigText, ConfigSelection, ConfigNumber, ConfigSubDict, NoSave
 import Screens.Standby
+from Components.config import config, ConfigEnableDisable, ConfigSubsection, \
+			 ConfigYesNo, ConfigClock, getConfigListEntry, ConfigText, \
+			 ConfigSelection, ConfigNumber, ConfigSubDict, NoSave
 from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 from Screens.ChoiceBox import ChoiceBox
@@ -15,7 +16,6 @@ from Components.ConfigList import ConfigListScreen
 from Components.ActionMap import ActionMap
 from Components.Button import Button
 from Components.Label import Label
-from Components.Sources.StaticText import StaticText
 from Components.ScrollLabel import ScrollLabel
 import Components.PluginComponent
 from Tools import Notifications
@@ -44,10 +44,9 @@ def calcDefaultStarttime():
 		offset = 7680
 	return (5 * 60 * 60) + offset
 
-from boxbranding import getImageDistro
 #Set default configuration
 config.plugins.epgimport = ConfigSubsection()
-config.plugins.epgimport.enabled = ConfigEnableDisable(default = False)
+config.plugins.epgimport.enabled = ConfigEnableDisable(default = True)
 config.plugins.epgimport.runboot = ConfigSelection(default = "4", choices = [
 		("1", _("always")),
 		("2", _("only manual boot")),
@@ -56,9 +55,7 @@ config.plugins.epgimport.runboot = ConfigSelection(default = "4", choices = [
 		])
 config.plugins.epgimport.runboot_restart = ConfigYesNo(default = False)
 config.plugins.epgimport.runboot_day = ConfigYesNo(default = False)
-config.plugins.epgimport.wakeupsleep = ConfigEnableDisable(default = False)
 config.plugins.epgimport.wakeup = ConfigClock(default = calcDefaultStarttime())
-config.plugins.epgimport.showinplugins = ConfigYesNo(default = False)
 config.plugins.epgimport.showinextensions = ConfigYesNo(default = True)
 config.plugins.epgimport.deepstandby = ConfigSelection(default = "skip", choices = [
 		("wakeup", _("wake up and import")),
@@ -193,8 +190,6 @@ def channelFilter(ref):
 		NavigationInstance.instance.stopRecordService(fakeRecService)
 		# -7 (errNoSourceFound) occurs when tuner is disconnected.
 		r = fakeRecResult in (0, -7)
-		#if not r:
-		#	print>>log, "Rejected (%d): %s" % (fakeRecResult, ref) 			
 		return r
 	print>>log, "Invalid serviceref string:", ref
 	return False
@@ -649,7 +644,7 @@ class EPGImportLog(Screen):
 		self["key_yellow"] = Button()
 		self["key_blue"] = Button(_("Save"))
 		self["list"] = ScrollLabel(log.getvalue())
-		self["actions"] = ActionMap(["DirectionActions", "OkCancelActions", "ColorActions", "MenuActions"],
+		self["actions"] = ActionMap(["DirectionActions", "OkCancelActions", "ColorActions"],
 		{
 			"red": self.clear,
 			"green": self.cancel,
@@ -663,8 +658,7 @@ class EPGImportLog(Screen):
 			"up": self["list"].pageUp,
 			"down": self["list"].pageDown,
 			"pageUp": self["list"].pageUp,
-			"pageDown": self["list"].pageDown,
-			"menu": self.cancel,
+			"pageDown": self["list"].pageDown
 		}, -2)
 		self.onLayoutFinish.append(self.setCustomTitle)
 
@@ -782,7 +776,6 @@ class checkDeepstandby:
 					self.session.open(Screens.Standby.TryQuitMainloop, 1)
 				else:
 					print>>log, "[EPGImport] No return to deep standby, not standby or running recording"
-
 
 def restartEnigma(confirmed):
 	if not confirmed:
@@ -1039,35 +1032,12 @@ def setExtensionsmenu(el):
 
 description = _("Automated EPG Importer")
 config.plugins.epgimport.showinextensions.addNotifier(setExtensionsmenu, initial_call = False, immediate_feedback = False)
-extDescriptor = PluginDescriptor(name= _("EPG-Importer"), description = description, where = PluginDescriptor.WHERE_EXTENSIONSMENU, fnc = extensionsmenu)
-pluginlist = PluginDescriptor(name=_("EPG-Importer"), description = description, where = PluginDescriptor.WHERE_PLUGINMENU, icon = 'plugin.png', fnc = main)
-
-def epgmenu(menuid, **kwargs):
-	if getImageDistro() in ("openvix", "openbh", "ventonsupport", "egami", "openhdf"):
-		if menuid == "epg":
-			return [(_("EPG-Importer"), main, "epgimporter", 1002)]
-		else:
-			return []
-	elif getImageDistro() in ("openatv"):
-		if menuid == "epg":
-			return [(_("EPG-Importer"), main, "epgimporter", None)]
-		else:
-			return []
-	elif getImageDistro() in ("openmips"):
-		if menuid == "epg_menu":
-			return [(_("EPG-Importer"), main, "epgimporter", 95)]
-		else:
-			return []
-	else:
-		if menuid == "setup":
-			return [(_("EPG-Importer"), main, "epgimporter", 1002)]
-		else:
-			return []
+extDescriptor = PluginDescriptor(name= _("EPGImport"), description = description, where = PluginDescriptor.WHERE_EXTENSIONSMENU, fnc = extensionsmenu)
 
 def Plugins(**kwargs):
 	result = [
 		PluginDescriptor(
-			name=_("EPG-Importer"),
+			name="EPGImport",
 			description = description,
 			where = [
 				PluginDescriptor.WHERE_AUTOSTART,
@@ -1077,44 +1047,19 @@ def Plugins(**kwargs):
 			wakeupfnc = getNextWakeup
 		),
 		PluginDescriptor(
-			name=_("EPG-Importer"),
+			name= _("EPGImport"),
 			description = description,
 			where = PluginDescriptor.WHERE_PLUGINMENU,
 			icon = 'plugin.png',
 			fnc = main
 		),
 		PluginDescriptor(
-			name=_("EPG-Importer"),
+			name= "EPG importer",
 			description = description,
 			where = PluginDescriptor.WHERE_MENU,
-			fnc = epgmenu
+			fnc = main_menu
 		),
 	]
 	if config.plugins.epgimport.showinextensions.value:
 		result.append(extDescriptor)
-	if config.plugins.epgimport.showinplugins.value:
-		result.append(pluginlist)
 	return result
-
-class SetupSummary(Screen):
-	def __init__(self, session, parent):
-		Screen.__init__(self, session, parent = parent)
-		self["SetupTitle"] = StaticText(_(parent.setup_title))
-		self["SetupEntry"] = StaticText("")
-		self["SetupValue"] = StaticText("")
-		self.onShow.append(self.addWatcher)
-		self.onHide.append(self.removeWatcher)
-
-	def addWatcher(self):
-		self.parent.onChangedEntry.append(self.selectionChanged)
-		self.parent["list"].onSelectionChanged.append(self.selectionChanged)
-		self.selectionChanged()
-
-	def removeWatcher(self):
-		self.parent.onChangedEntry.remove(self.selectionChanged)
-		self.parent["list"].onSelectionChanged.remove(self.selectionChanged)
-
-	def selectionChanged(self):
-		self["SetupEntry"].text = self.parent.getCurrentEntry()
-		self["SetupValue"].text = self.parent.getCurrentValue()
-

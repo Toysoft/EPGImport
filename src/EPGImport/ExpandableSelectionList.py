@@ -1,13 +1,8 @@
 from Components.MenuList import MenuList
+from Components.SelectionList import selectionpng
 from Tools.Directories import resolveFilename, SCOPE_CURRENT_SKIN
 from enigma import eListboxPythonMultiContent, eListbox, gFont, RT_HALIGN_LEFT
 from Tools.LoadPixmap import LoadPixmap
-
-try:
-	from Components.SelectionList import selectiononpng as selectionpng 
-except ImportError:
-	from Components.SelectionList import selectionpng
-
 import skin
 
 expandableIcon = LoadPixmap(resolveFilename(SCOPE_CURRENT_SKIN, "skin_default/expandable.png"))
